@@ -1,0 +1,1 @@
+# Gocyclo for IDE
