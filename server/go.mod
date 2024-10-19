@@ -2,13 +2,13 @@ module github.com/takaaa220/gocyclo-ide/server
 
 go 1.23.1
 
-require (
-	github.com/tliron/commonlog v0.2.19
-	github.com/tliron/glsp v0.2.2
-)
+require github.com/tliron/glsp v0.2.2
+
+require github.com/tliron/commonlog v0.2.19 // indirect
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/fzipp/gocyclo v0.6.0
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
