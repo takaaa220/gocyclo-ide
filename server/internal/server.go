@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"log"
 	"net/url"
 
@@ -24,6 +25,7 @@ func StartServer() error {
 		Shutdown:                       shutdown,
 		SetTrace:                       setTrace,
 		TextDocumentDidSave:            didSave,
+		TextDocumentCodeLens:           codeLens,
 		WorkspaceDidChangeWatchedFiles: didChangeWatchedFiles,
 	}
 
@@ -39,6 +41,7 @@ func initialize(context *glsp.Context, params *protocol.InitializeParams) (any, 
 	capabilities.TextDocumentSync = protocol.TextDocumentSyncOptions{
 		Save: true,
 	}
+	capabilities.CodeLensProvider = &protocol.CodeLensOptions{}
 
 	return protocol.InitializeResult{
 		Capabilities: capabilities,
@@ -66,15 +69,7 @@ func setTrace(context *glsp.Context, params *protocol.SetTraceParams) error {
 func didSave(context *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 	log.Println("Saved", params.TextDocument.URI)
 
-	parsedURL, err := url.Parse(params.TextDocument.URI)
-	if err != nil {
-		log.Fatalf("Error parsing URI: %v", err)
-	}
-
-	stats := calculateFunctionComplexities(parsedURL.Path)
-	for _, stat := range stats {
-		log.Println(stat)
-	}
+	go context.Notify(protocol.ServerWorkspaceCodeLensRefresh, nil)
 
 	return nil
 }
@@ -83,4 +78,38 @@ func didChangeWatchedFiles(context *glsp.Context, params *protocol.DidChangeWatc
 	log.Println("Changed watched files")
 
 	return nil
+}
+
+func codeLens(context *glsp.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
+	log.Println("CodeLens requested")
+
+	parsedURL, err := url.Parse(params.TextDocument.URI)
+	if err != nil {
+		log.Fatalf("Error parsing URI: %v", err)
+		return nil, err
+	}
+
+	complexities := calculateFunctionComplexities(parsedURL.Path)
+	lensList := make([]protocol.CodeLens, len(complexities))
+	for i, complexity := range complexities {
+		lensList[i] = protocol.CodeLens{
+			Range: protocol.Range{
+				Start: protocol.Position{
+					Line:      uint32(complexity.Pos.Line - 1),
+					Character: uint32(complexity.Pos.Column - 1),
+				},
+				End: protocol.Position{
+					Line:      uint32(complexity.Pos.Line - 1),
+					Character: uint32(complexity.Pos.Column - 1),
+				},
+			},
+			Command: &protocol.Command{
+				Title:     fmt.Sprintf("Cyclomatic Complexity: %d", complexity.Complexity),
+				Command:   "",
+				Arguments: nil,
+			},
+		}
+	}
+
+	return lensList, nil
 }
